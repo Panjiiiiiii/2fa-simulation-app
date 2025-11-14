@@ -54,16 +54,16 @@ export async function registerUser(formData: FormData) {
 }
 
 export async function loginUser(formData: FormData) {
-  const email = formData.get("email") as string;
+  const username = formData.get("username") as string;
   const password = formData.get("password") as string;
-  if (!email || !password) {
+  if (!username || !password) {
     return { error: "All fields are required" };
   }
 
   try {
-    const user = await prisma.user.findUnique({
+    const user = await prisma.user.findFirst({
       where: {
-        email,
+        username,
       },
     });
 
@@ -91,12 +91,12 @@ export async function loginUser(formData: FormData) {
 
     await resend.emails.send({
       from: "Auth System <noreply@yourdomain.com>",
-      to: email,
+      to: user.email,
       subject: "Your OTP Code",
       html: emailHtml,
     });
 
-    return { success: "OTP sent to your email", userId: user.id};
+    return { success: "OTP sent to your email", userId: user.id };
   } catch (error) {
     console.error("Login error:", error);
     return { error: "Something went wrong during login" };
@@ -130,5 +130,26 @@ export async function verifyOtp(formData: FormData) {
   } catch (error) {
     console.error("OTP verification error:", error);
     return { error: "Something went wrong during OTP verification" };
+  }
+}
+
+export async function changePassword(formData: FormData) {
+  const userId = formData.get("userId") as string;
+  const newPassword = formData.get("newPassword") as string;
+  if (!userId || !newPassword) {
+    return { error: "All fields are required" };
+  }
+  try {
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        password: hashedPassword,
+      },
+    });
+    return { success: "Password changed successfully" };
+  } catch (error) {
+    console.error(error);
+    return { error: "Fail to change password" };
   }
 }
