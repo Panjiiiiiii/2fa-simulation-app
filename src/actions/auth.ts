@@ -1,52 +1,48 @@
 "use server";
 
 import prisma from "@/lib/prisma";
-import { Resend } from "resend";
 import bcrypt from "bcryptjs";
-import { render } from "@react-email/render";
-import OtpEmail from "@/emails/OtpEmail";
-import React from "react";
-
-const resend = new Resend(process.env.RESEND_API_KEY);
+import { sendEmail, createOtpEmailTemplate } from "@/lib/azureEmail";
 
 export async function registerUser(formData: FormData) {
-  const email = formData.get("email") as string;
-  const password = formData.get("password") as string;
-  const username = formData.get("username") as string;
-
-  if (!email || !password || !username) {
-    return { error: "All fields are required" };
-  }
-
   try {
-    const existingUser = await prisma.user.findUnique({
-      where: {
-        email,
-      },
-    });
+    const email = formData.get("email") as string;
+    const username = formData.get("username") as string;
+    const password = formData.get("password") as string;
 
-    if (existingUser) {
-      return { error: "User already exists with this email" };
+    if (!email || !username || !password) {
+      return { error: "All fields are required" };
+    }
+
+    const exists = await prisma.user.findFirst({ where: { email } });
+    if (exists) {
+      return { error: "Email already registered" };
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpires = new Date(Date.now() + 10 * 60 * 1000);
+
     const user = await prisma.user.create({
       data: {
-        username,
         email,
+        username,
         password: hashedPassword,
+        otp,
+        otpExpires,
       },
     });
 
-    return {
-      success: "User registered successfully!",
-      user: {
-        id: user.id,
-        email: user.email,
-        username: user.username,
-      },
-    };
+    const htmlTemplate = createOtpEmailTemplate(otp);
+
+    const emailResult = await sendEmail({
+      to: email,
+      subject: "Your Registration OTP Code",
+      htmlContent: htmlTemplate,
+    });
+    console.log('Email sent:', emailResult);
+    return { userId: user.id, email: user.email };
   } catch (error) {
     console.error("Registration error:", error);
     return { error: "Something went wrong during registration" };
@@ -87,13 +83,12 @@ export async function loginUser(formData: FormData) {
       },
     });
 
-    const emailHtml = await render(React.createElement(OtpEmail, { otp }));
+    const htmlTemplate = createOtpEmailTemplate(otp);
 
-    await resend.emails.send({
-      from: "Auth System <noreply@yourdomain.com>",
+    await sendEmail({
       to: user.email,
-      subject: "Your OTP Code",
-      html: emailHtml,
+      subject: "Your Login OTP Code",
+      htmlContent: htmlTemplate,
     });
 
     return { success: "OTP sent to your email", userId: user.id };
@@ -106,27 +101,40 @@ export async function loginUser(formData: FormData) {
 export async function verifyOtp(formData: FormData) {
   const userId = formData.get("userId") as string;
   const otp = formData.get("otp") as string;
+
   if (!userId || !otp) {
     return { error: "All fields are required" };
   }
+
   try {
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-    });
-    if (!user || user.otp !== otp) {
-      return { error: "Invalid OTP" };
+    console.log('Verifying OTP for userId:', userId);
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+
+    if (!user) {
+      return { error: "User not found" };
     }
+
+    console.log('User OTP:', user.otp);
+    console.log('Input OTP:', otp);
+
+    if (!user.otp || !user.otpExpires) {
+      return { error: "No OTP found for this user" };
+    }
+
+    if (user.otp !== otp) {
+      return { error: "Incorrect OTP" };
+    }
+
     if (user.otpExpires < new Date()) {
-      return { error: "OTP has expired" };
+      return { error: "OTP expired" };
     }
+
     await prisma.user.update({
-      where: { id: user.id },
-      data: {
-        otp: null,
-        otpExpires: null,
-      },
+      where: { id: userId },
+      data: { otp: null, otpExpires: null, verified: true },
     });
-    return { success: "OTP verified successfully" };
+
+    return { success: "OTP verified!" };
   } catch (error) {
     console.error("OTP verification error:", error);
     return { error: "Something went wrong during OTP verification" };

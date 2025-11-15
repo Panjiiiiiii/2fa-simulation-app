@@ -1,14 +1,37 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { loginUser } from "@/actions/auth";
 import Link from "next/link";
 
-export default function LoginPage() {
+function LoginForm() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  
   const [formData, setFormData] = useState({
-    email: "",
+    username: "",
     password: "",
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
+  
+  // Check for registration success or logout message
+  useEffect(() => {
+    const registered = searchParams.get('registered');
+    const logout = searchParams.get('logout');
+    
+    if (registered === 'true') {
+      setSuccessMessage("Registration completed successfully! Please log in to continue.");
+    } else if (logout === 'true') {
+      setSuccessMessage("You have been logged out successfully.");
+    }
+    
+    // Clear message after 5 seconds
+    if (registered || logout) {
+      setTimeout(() => setSuccessMessage(""), 5000);
+    }
+  }, [searchParams]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -22,13 +45,26 @@ export default function LoginPage() {
     e.preventDefault();
     setIsLoading(true);
     
-    // TODO: Integrate with auth action later
-    console.log("Login data:", formData);
+    const data = new FormData();
+    data.append("username", formData.username);
+    data.append("password", formData.password);
+
+    const result = await loginUser(data);
+    setIsLoading(false);
+
+    if (result.error) {
+      alert(result.error);
+      return;
+    }
+
+    // Store login data for OTP verification
+    localStorage.setItem('pendingLogin', JSON.stringify({
+      userId: result.userId,
+      email: formData.username + '@example.com' // In real app, this would come from API
+    }));
     
-    // Simulate loading
-    setTimeout(() => {
-      setIsLoading(false);
-    }, 1000);
+    // Redirect to OTP page
+    router.push('/otp?type=login');
   };
 
   return (
@@ -45,24 +81,40 @@ export default function LoginPage() {
             </p>
           </div>
 
+          {/* Success Message */}
+          {successMessage && (
+            <div className="mb-6 p-4 bg-green-50 border-l-4 border-green-400 rounded">
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  <svg className="h-5 w-5 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm text-green-700">{successMessage}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Login Form */}
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Email Field */}
             <div>
               <label 
-                htmlFor="email" 
+                htmlFor="username" 
                 className="block text-sm font-medium text-gray-700 mb-2"
               >
-                Email Address
+                Username
               </label>
               <input
-                type="email"
-                id="email"
-                name="email"
-                value={formData.email}
+                type="text"
+                id="username"
+                name="username"
+                value={formData.username}
                 onChange={handleChange}
                 required
-                placeholder="Enter your email"
+                placeholder="Enter your username"
                 className="w-full px-4 py-3 border border-gray-300 text-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 outline-none"
               />
             </div>
@@ -89,17 +141,6 @@ export default function LoginPage() {
 
             {/* Remember Me & Forgot Password */}
             <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <input
-                  id="remember-me"
-                  name="remember-me"
-                  type="checkbox"
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                />
-                <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-700">
-                  Remember me
-                </label>
-              </div>
               <Link 
                 href="/change-password" 
                 className="text-sm text-blue-600 hover:text-blue-800 transition-colors duration-200"
@@ -143,5 +184,17 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    }>
+      <LoginForm />
+    </Suspense>
   );
 }

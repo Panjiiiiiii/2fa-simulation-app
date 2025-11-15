@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { registerUser } from "@/actions/auth";
 import Link from "next/link";
 
 interface PasswordStrength {
@@ -18,6 +20,7 @@ interface PasswordStrength {
 }
 
 export default function RegisterPage() {
+  const router = useRouter();
   const [formData, setFormData] = useState({
     username: "",
     email: "",
@@ -50,7 +53,7 @@ export default function RegisterPage() {
     };
 
     const metCriteria = Object.values(criteria).filter(Boolean).length;
-    
+
     let score = 0;
     let label = "Sangat Lemah";
     let color = "text-red-600";
@@ -116,7 +119,7 @@ export default function RegisterPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Validasi password confirmation
     if (formData.password !== formData.confirmPassword) {
       alert("Password tidak cocok!");
@@ -125,23 +128,38 @@ export default function RegisterPage() {
 
     // Validasi kekuatan password minimal sedang
     if (passwordStrength.score < 50) {
-      alert("Password terlalu lemah! Minimal harus memiliki kekuatan 'Sedang'.");
+      alert(
+        "Password terlalu lemah! Minimal harus memiliki kekuatan 'Sedang'."
+      );
       return;
     }
 
     setIsLoading(true);
-    
-    // TODO: Integrate with auth action later
-    console.log("Register data:", {
-      username: formData.username,
-      email: formData.email,
-      password: formData.password,
-    });
-    
-    // Simulate loading
-    setTimeout(() => {
-      setIsLoading(false);
-    }, 1000);
+
+    // Simulate registration API call
+    const data = new FormData();
+    data.append("username", formData.username);
+    data.append("email", formData.email);
+    data.append("password", formData.password);
+
+    const result = await registerUser(data);
+    setIsLoading(false);
+
+    if (result.error) {
+      alert(result.error);
+      return;
+    }
+
+    // ⬅️ SIMPAN userId AGAR OTP PAGE BISA VERIFIKASI
+    localStorage.setItem(
+      "pendingRegistration",
+      JSON.stringify({
+        userId: result.userId,
+        email: result.email
+      })
+    );
+
+    router.push("/otp?type=register");
   };
 
   const togglePasswordVisibility = () => {
@@ -166,8 +184,8 @@ export default function RegisterPage() {
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Username Field */}
             <div>
-              <label 
-                htmlFor="username" 
+              <label
+                htmlFor="username"
                 className="block text-sm font-medium text-gray-700 mb-2"
               >
                 Username
@@ -186,8 +204,8 @@ export default function RegisterPage() {
 
             {/* Email Field */}
             <div>
-              <label 
-                htmlFor="email" 
+              <label
+                htmlFor="email"
                 className="block text-sm font-medium text-gray-700 mb-2"
               >
                 Email Address
@@ -206,8 +224,8 @@ export default function RegisterPage() {
 
             {/* Password Field */}
             <div>
-              <label 
-                htmlFor="password" 
+              <label
+                htmlFor="password"
                 className="block text-sm font-medium text-gray-700 mb-2"
               >
                 Password
@@ -229,13 +247,38 @@ export default function RegisterPage() {
                   className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
                 >
                   {showPassword ? (
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L12 12m-2.122-2.122L7.758 7.758M12 12l2.122-2.122m0 0L16.242 16.242M12 12l4.243-4.243m0 0L19.5 4.5M4.5 19.5l15-15" />
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L12 12m-2.122-2.122L7.758 7.758M12 12l2.122-2.122m0 0L16.242 16.242M12 12l4.243-4.243m0 0L19.5 4.5M4.5 19.5l15-15"
+                      />
                     </svg>
                   ) : (
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                      />
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                      />
                     </svg>
                   )}
                 </button>
@@ -248,14 +291,16 @@ export default function RegisterPage() {
                     <span className="text-sm font-medium text-gray-700">
                       Password Strength:
                     </span>
-                    <span className={`text-sm font-medium ${passwordStrength.color}`}>
+                    <span
+                      className={`text-sm font-medium ${passwordStrength.color}`}
+                    >
                       {passwordStrength.label}
                     </span>
                   </div>
-                  
+
                   {/* Progress Bar */}
                   <div className="w-full bg-gray-200 rounded-full h-2 mb-3">
-                    <div 
+                    <div
                       className={`h-2 rounded-full transition-all duration-300 ${passwordStrength.bgColor}`}
                       style={{ width: `${passwordStrength.score}%` }}
                     ></div>
@@ -263,33 +308,83 @@ export default function RegisterPage() {
 
                   {/* Criteria List */}
                   <div className="space-y-1">
-                    <div className={`flex items-center text-xs ${passwordStrength.criteria.length ? 'text-green-600' : 'text-gray-500'}`}>
-                      <svg className="w-3 h-3 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    <div
+                      className={`flex items-center text-xs ${passwordStrength.criteria.length ? "text-green-600" : "text-gray-500"}`}
+                    >
+                      <svg
+                        className="w-3 h-3 mr-2"
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                          clipRule="evenodd"
+                        />
                       </svg>
                       Minimal 8 karakter
                     </div>
-                    <div className={`flex items-center text-xs ${passwordStrength.criteria.uppercase ? 'text-green-600' : 'text-gray-500'}`}>
-                      <svg className="w-3 h-3 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    <div
+                      className={`flex items-center text-xs ${passwordStrength.criteria.uppercase ? "text-green-600" : "text-gray-500"}`}
+                    >
+                      <svg
+                        className="w-3 h-3 mr-2"
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                          clipRule="evenodd"
+                        />
                       </svg>
                       Huruf besar (A-Z)
                     </div>
-                    <div className={`flex items-center text-xs ${passwordStrength.criteria.lowercase ? 'text-green-600' : 'text-gray-500'}`}>
-                      <svg className="w-3 h-3 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    <div
+                      className={`flex items-center text-xs ${passwordStrength.criteria.lowercase ? "text-green-600" : "text-gray-500"}`}
+                    >
+                      <svg
+                        className="w-3 h-3 mr-2"
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                          clipRule="evenodd"
+                        />
                       </svg>
                       Huruf kecil (a-z)
                     </div>
-                    <div className={`flex items-center text-xs ${passwordStrength.criteria.number ? 'text-green-600' : 'text-gray-500'}`}>
-                      <svg className="w-3 h-3 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    <div
+                      className={`flex items-center text-xs ${passwordStrength.criteria.number ? "text-green-600" : "text-gray-500"}`}
+                    >
+                      <svg
+                        className="w-3 h-3 mr-2"
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                          clipRule="evenodd"
+                        />
                       </svg>
                       Angka (0-9)
                     </div>
-                    <div className={`flex items-center text-xs ${passwordStrength.criteria.symbol ? 'text-green-600' : 'text-gray-500'}`}>
-                      <svg className="w-3 h-3 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    <div
+                      className={`flex items-center text-xs ${passwordStrength.criteria.symbol ? "text-green-600" : "text-gray-500"}`}
+                    >
+                      <svg
+                        className="w-3 h-3 mr-2"
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                          clipRule="evenodd"
+                        />
                       </svg>
                       Simbol khusus (!@#$%^&*)
                     </div>
@@ -300,8 +395,8 @@ export default function RegisterPage() {
 
             {/* Confirm Password Field */}
             <div>
-              <label 
-                htmlFor="confirmPassword" 
+              <label
+                htmlFor="confirmPassword"
                 className="block text-sm font-medium text-gray-700 mb-2"
               >
                 Confirm Password
@@ -315,14 +410,18 @@ export default function RegisterPage() {
                 required
                 placeholder="Confirm your password"
                 className={`w-full px-4 py-3 border rounded-lg focus:ring-2 text-gray-700 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 outline-none ${
-                  formData.confirmPassword && formData.password !== formData.confirmPassword
+                  formData.confirmPassword &&
+                  formData.password !== formData.confirmPassword
                     ? "border-red-300 bg-red-50"
                     : "border-gray-300"
                 }`}
               />
-              {formData.confirmPassword && formData.password !== formData.confirmPassword && (
-                <p className="mt-1 text-sm text-red-600">Password tidak cocok</p>
-              )}
+              {formData.confirmPassword &&
+                formData.password !== formData.confirmPassword && (
+                  <p className="mt-1 text-sm text-red-600">
+                    Password tidak cocok
+                  </p>
+                )}
             </div>
 
             {/* Terms and Conditions */}
@@ -334,13 +433,22 @@ export default function RegisterPage() {
                 required
                 className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mt-1"
               />
-              <label htmlFor="terms" className="ml-2 block text-sm text-gray-700">
+              <label
+                htmlFor="terms"
+                className="ml-2 block text-sm text-gray-700"
+              >
                 I agree to the{" "}
-                <Link href="/terms" className="text-blue-600 hover:text-blue-800">
+                <Link
+                  href="/terms"
+                  className="text-blue-600 hover:text-blue-800"
+                >
                   Terms of Service
                 </Link>{" "}
                 and{" "}
-                <Link href="/privacy" className="text-blue-600 hover:text-blue-800">
+                <Link
+                  href="/privacy"
+                  className="text-blue-600 hover:text-blue-800"
+                >
                   Privacy Policy
                 </Link>
               </label>
@@ -367,8 +475,8 @@ export default function RegisterPage() {
           <div className="mt-8 text-center">
             <p className="text-sm text-gray-600">
               Already have an account?{" "}
-              <Link 
-                href="/login" 
+              <Link
+                href="/login"
                 className="text-blue-600 hover:text-blue-800 font-medium transition-colors duration-200"
               >
                 Sign in here
