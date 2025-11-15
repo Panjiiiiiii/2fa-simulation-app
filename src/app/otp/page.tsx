@@ -21,14 +21,14 @@ function OTPForm() {
   const [isResending, setIsResending] = useState(false);
   const [userEmail, setUserEmail] = useState("user@example.com");
 
-  // Get user data from localStorage based on flow type
+  // Get user data from registration, login, or password reset
   useEffect(() => {
     if (otpType === "register") {
       const pendingData = localStorage.getItem("pendingRegistration");
       if (pendingData) {
         const userData = JSON.parse(pendingData);
         setUserEmail(userData.email);
-        setUserId(userData.userId); // Fix: use userId instead of id
+        setUserId(userData.userId);
         console.log('Register flow - userId:', userData.userId, 'email:', userData.email);
       }
     } else if (otpType === "login") {
@@ -36,8 +36,16 @@ function OTPForm() {
       if (pendingData) {
         const userData = JSON.parse(pendingData);
         setUserEmail(userData.email);
-        setUserId(userData.userId); // Fix: add userId for login flow too
+        setUserId(userData.userId);
         console.log('Login flow - userId:', userData.userId, 'email:', userData.email);
+      }
+    } else if (otpType === "reset") {
+      const pendingData = localStorage.getItem("passwordReset");
+      if (pendingData) {
+        const userData = JSON.parse(pendingData);
+        setUserEmail(userData.email);
+        setUserId(userData.userId);
+        console.log('Reset flow - userId:', userData.userId, 'email:', userData.email);
       }
     }
   }, [otpType]);
@@ -155,6 +163,13 @@ function OTPForm() {
       setTimeout(() => router.push("/dashboard"), 1000);
     }
 
+    // ---- PASSWORD RESET FLOW ----
+    if (otpType === "reset") {
+      // Don't remove passwordReset data yet, need it for change password
+      setSuccess("OTP verified! Redirecting to change password...");
+      setTimeout(() => router.push("/change-password?type=reset"), 1500);
+    }
+
     setIsLoading(false);
   };
 
@@ -209,8 +224,10 @@ function OTPForm() {
               </svg>
             </div>
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              {otpType === "register"
+              {otpType === "register" 
                 ? "Complete Registration"
+                : otpType === "reset"
+                ? "Reset Your Password" 
                 : "Verify Your Email"}
             </h1>
             <p className="text-gray-600 mb-2">We've sent a 6-digit code to</p>
@@ -218,6 +235,8 @@ function OTPForm() {
             <p className="text-sm text-gray-500 mt-2">
               {otpType === "register"
                 ? "Enter the code to complete your registration"
+                : otpType === "reset"
+                ? "Enter the code to reset your password"
                 : "Enter the code below to continue"}
             </p>
           </div>

@@ -13,22 +13,30 @@ function DashboardMain() {
   const [user, setUser] = useState({
     username: "User",
     email: "user@example.com",
-    joinDate: new Date().toLocaleDateString()
+    joinDate: ""
   });
+  const [isClient, setIsClient] = useState(false);
 
   // Load user data from session
   useEffect(() => {
+    setIsClient(true);
     const sessionData = localStorage.getItem('userSession');
     const welcome = searchParams.get('welcome');
+    const currentDate = new Date().toLocaleDateString();
     
     if (sessionData) {
       const userData = JSON.parse(sessionData);
       setUser({
         username: userData.email.split('@')[0],
         email: userData.email,
-        joinDate: new Date().toLocaleDateString()
+        joinDate: currentDate
       });
       setIsNewUser(userData.isNewUser);
+    } else {
+      setUser(prev => ({
+        ...prev,
+        joinDate: currentDate
+      }));
     }
     
     if (welcome === 'true') {
@@ -193,7 +201,7 @@ function DashboardMain() {
                 <div className="text-center">
                   <div className="text-2xl mb-2">📅</div>
                   <h3 className="font-semibold text-green-800">Member Since</h3>
-                  <p className="text-green-600">{user.joinDate}</p>
+                  <p className="text-green-600">{isClient ? user.joinDate : "Loading..."}</p>
                 </div>
               </div>
             </div>

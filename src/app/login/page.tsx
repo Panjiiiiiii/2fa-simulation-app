@@ -16,20 +16,23 @@ function LoginForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
   
-  // Check for registration success or logout message
+  // Check for registration success, logout, or password reset message
   useEffect(() => {
     const registered = searchParams.get('registered');
     const logout = searchParams.get('logout');
+    const passwordReset = searchParams.get('password-reset');
     
     if (registered === 'true') {
       setSuccessMessage("Registration completed successfully! Please log in to continue.");
     } else if (logout === 'true') {
       setSuccessMessage("You have been logged out successfully.");
+    } else if (passwordReset === 'true') {
+      setSuccessMessage("Password has been reset successfully! Please log in with your new password.");
     }
     
-    // Clear message after 5 seconds
-    if (registered || logout) {
-      setTimeout(() => setSuccessMessage(""), 5000);
+    // Clear message after 8 seconds
+    if (registered || logout || passwordReset) {
+      setTimeout(() => setSuccessMessage(""), 8000);
     }
   }, [searchParams]);
 
@@ -140,14 +143,6 @@ function LoginForm() {
             </div>
 
             {/* Remember Me & Forgot Password */}
-            <div className="flex items-center justify-between">
-              <Link 
-                href="/change-password" 
-                className="text-sm text-blue-600 hover:text-blue-800 transition-colors duration-200"
-              >
-                Forgot password?
-              </Link>
-            </div>
 
             {/* Submit Button */}
             <button
@@ -169,8 +164,18 @@ function LoginForm() {
 
           {/* Social Login Buttons */}
 
+          {/* Forgot Password Link */}
+          <div className="mt-6 text-center">
+            <Link 
+              href="/forgot-password" 
+              className="text-sm text-gray-600 hover:text-gray-800 font-medium transition-colors duration-200"
+            >
+              Forgot your password?
+            </Link>
+          </div>
+
           {/* Sign Up Link */}
-          <div className="mt-8 text-center">
+          <div className="mt-4 text-center">
             <p className="text-sm text-gray-600">
               Don't have an account?{" "}
               <Link 

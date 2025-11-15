@@ -141,6 +141,48 @@ export async function verifyOtp(formData: FormData) {
   }
 }
 
+export async function sendPasswordResetOtp(formData: FormData) {
+  const email = formData.get("email") as string;
+
+  if (!email) {
+    return { error: "Email is required" };
+  }
+
+  try {
+    const user = await prisma.user.findFirst({
+      where: { email },
+    });
+
+    if (!user) {
+      return { error: "No account found with this email address" };
+    }
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpires = new Date(Date.now() + 10 * 60 * 1000);
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        otp,
+        otpExpires,
+      },
+    });
+
+    const htmlTemplate = createOtpEmailTemplate(otp);
+
+    await sendEmail({
+      to: email,
+      subject: "Password Reset OTP Code",
+      htmlContent: htmlTemplate,
+    });
+
+    return { success: "Reset code sent to your email", userId: user.id };
+  } catch (error) {
+    console.error("Password reset error:", error);
+    return { error: "Something went wrong. Please try again." };
+  }
+}
+
 export async function changePassword(formData: FormData) {
   const userId = formData.get("userId") as string;
   const newPassword = formData.get("newPassword") as string;

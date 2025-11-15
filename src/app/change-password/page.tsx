@@ -1,6 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { changePassword } from "@/actions/auth";
 import Link from "next/link";
 
 interface PasswordStrength {
@@ -17,7 +19,11 @@ interface PasswordStrength {
   };
 }
 
-export default function ChangePasswordPage() {
+function ChangePasswordForm() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const isResetFlow = searchParams.get('type') === 'reset';
+  
   const [formData, setFormData] = useState({
     newPassword: "",
     confirmPassword: "",
@@ -25,6 +31,8 @@ export default function ChangePasswordPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [userId, setUserId] = useState("");
+  const [userEmail, setUserEmail] = useState("");
   const [passwordStrength, setPasswordStrength] = useState<PasswordStrength>({
     score: 0,
     label: "Sangat Lemah",
@@ -38,6 +46,25 @@ export default function ChangePasswordPage() {
       symbol: false,
     },
   });
+
+  // Load user data from localStorage based on flow type
+  useEffect(() => {
+    if (isResetFlow) {
+      const resetData = localStorage.getItem('passwordReset');
+      if (resetData) {
+        const userData = JSON.parse(resetData);
+        setUserId(userData.userId);
+        setUserEmail(userData.email);
+      }
+    } else {
+      const sessionData = localStorage.getItem('userSession');
+      if (sessionData) {
+        const userData = JSON.parse(sessionData);
+        setUserId(userData.userId);
+        setUserEmail(userData.email);
+      }
+    }
+  }, [isResetFlow]);
 
   const calculatePasswordStrength = (password: string): PasswordStrength => {
     const criteria = {
@@ -128,23 +155,40 @@ export default function ChangePasswordPage() {
       return;
     }
 
+    if (!userId) {
+      alert("User ID tidak ditemukan. Silakan login ulang.");
+      return;
+    }
+
     setIsLoading(true);
     
-    // TODO: Integrate with auth action later
-    console.log("Change password data:", {
-      newPassword: formData.newPassword,
-    });
+    const data = new FormData();
+    data.append("userId", userId);
+    data.append("newPassword", formData.newPassword);
     
-    // Simulate loading
-    setTimeout(() => {
-      setIsLoading(false);
-      alert("Password berhasil diubah!");
-      // Reset form
+    const result = await changePassword(data);
+    setIsLoading(false);
+
+    if (result.error) {
+      alert(result.error);
+      return;
+    }
+
+    alert("Password berhasil diubah!");
+    
+    if (isResetFlow) {
+      // Clear password reset data and redirect to login
+      localStorage.removeItem('passwordReset');
+      setTimeout(() => {
+        router.push('/login?password-reset=true');
+      }, 1000);
+    } else {
+      // Reset form for logged-in users
       setFormData({
         newPassword: "",
         confirmPassword: "",
       });
-    }, 1500);
+    }
   };
 
   const togglePasswordVisibility = (field: 'new' | 'confirm') => {
@@ -180,10 +224,12 @@ export default function ChangePasswordPage() {
               </svg>
             </div>
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              Change Password
+              {isResetFlow ? "Create New Password" : "Change Password"}
             </h1>
             <p className="text-gray-600">
-              Create a new secure password for your account
+              {isResetFlow 
+                ? `Create a new secure password for ${userEmail}` 
+                : "Create a new secure password for your account"}
             </p>
           </div>
 
@@ -367,5 +413,17 @@ export default function ChangePasswordPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ChangePasswordPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    }>
+      <ChangePasswordForm />
+    </Suspense>
   );
 }
